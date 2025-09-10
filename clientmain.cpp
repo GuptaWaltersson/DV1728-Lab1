@@ -121,7 +121,7 @@ int main(int argc, char *argv[]){
       
   // *Desthost now points to a sting holding whatever came before the delimiter, ':'.
   // *Dstport points to whatever string came after the delimiter. 
-
+	// TEST MOTHA FUCKA
 
     
   /* Do magic */
