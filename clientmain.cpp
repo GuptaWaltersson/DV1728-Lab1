@@ -19,7 +19,6 @@ int main(int argc, char *argv[]){
     fprintf(stderr, "Usage: %s protocol://server:port/path.\n", argv[0]);
     exit(EXIT_FAILURE);
   }
-  // Test1
     
   /*
     Read first input, assumes <ip>:<port> syntax, convert into one string (Desthost) and one integer (port). 
