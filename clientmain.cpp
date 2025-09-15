@@ -124,7 +124,7 @@ int main(int argc, char *argv[]){
     
   /* Do magic */
   int port=atoi(Destport);
-  if (port < 1000 or port >65535) {
+  if (port <= 1 or port >65535) {
     printf("Error: Port is out of server scope.\n");
     if ( port > 65535 ) {
       printf("Error: Port is not a valid UDP or TCP port.\n");
