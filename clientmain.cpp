@@ -123,6 +123,8 @@ int main(int argc, char *argv[]){
 
     
   /* Do magic */
+
+  initCalcLib();
   int port;
   try{ port=atoi(Destport);
   } catch (...){
@@ -137,6 +139,31 @@ int main(int argc, char *argv[]){
     }
     return 1;
   }
+
+  if(strncmp(protocol,"TCP",3))
+  {
+    if (strncmp(Destpath,"text",sizeof(Destpath)))
+    {
+      #ifdef DEBUG
+        printf("tcp text");
+      #endif
+    }
+    else if (strncmp(Destpath,"binary",sizeof(Destpath)))
+    {
+
+    }
+  }
+  else if(strncmp(protocol,"UDP",3))
+  {
+    if (strncmp(Destpath,"text",sizeof(Destpath)))
+    {
+      
+    }
+    else if (strncmp(Destpath,"binary",sizeof(Destpath)))
+    {
+
+    }
+  }
 #ifdef DEBUG 
   printf("Protocol: %s Host %s, port = %d and path = %s.\n",protocol, Desthost,port, Destpath);
 #endif
@@ -147,7 +174,7 @@ int main(int argc, char *argv[]){
 
 void TCP_text()
 {
-
+  
 }
 
 void TCP_binary()
@@ -162,5 +189,5 @@ void UDP_text()
 
 void UDP_binary()
 {
-  
+
 }
