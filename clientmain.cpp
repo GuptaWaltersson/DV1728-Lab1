@@ -123,7 +123,13 @@ int main(int argc, char *argv[]){
 
     
   /* Do magic */
-  int port=atoi(Destport);
+  int port;
+  try{ port=atoi(Destport);
+  } catch (...){
+    printf("Error: Invalid Port format");
+  }
+
+  
   if (port <= 1 or port >65535) {
     printf("Error: Port is out of server scope.\n");
     if ( port > 65535 ) {
@@ -136,5 +142,25 @@ int main(int argc, char *argv[]){
 #endif
 
 
+  
+}
+
+void TCP_text()
+{
+
+}
+
+void TCP_binary()
+{
+
+}
+
+void UDP_text()
+{
+
+}
+
+void UDP_binary()
+{
   
 }
