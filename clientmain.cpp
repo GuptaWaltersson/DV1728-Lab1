@@ -139,9 +139,10 @@ int main(int argc, char *argv[]){
     }
     return 1;
   }
-
-  if(strncmp(protocol,"TCP",3))
+  printf("nothing");
+  if(strncmp(protocol,"tcp",3))
   {
+    printf("tcp");
     if (strncmp(Destpath,"text",sizeof(Destpath)))
     {
       #ifdef DEBUG
@@ -155,6 +156,7 @@ int main(int argc, char *argv[]){
   }
   else if(strncmp(protocol,"UDP",3))
   {
+    
     if (strncmp(Destpath,"text",sizeof(Destpath)))
     {
       
@@ -163,6 +165,9 @@ int main(int argc, char *argv[]){
     {
 
     }
+  }
+  else{
+    printf("Nope");
   }
 #ifdef DEBUG 
   printf("Protocol: %s Host %s, port = %d and path = %s.\n",protocol, Desthost,port, Destpath);
