@@ -7,9 +7,50 @@
 // Alternative, pass CFLAGS=-DDEBUG to make, make CFLAGS=-DDEBUG
 #define DEBUG
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <netdb.h>
+#include "protocol.h"
+#include <errno.h>
 
 // Included to get the support library
 #include <calcLib.h>
+
+
+
+
+void TCP_text()
+{
+  #ifdef DEBUG
+    printf("tcp text\n");
+  #endif
+
+  //get address info, ger oss möjliga sockets
+  // koppla till en valid socke, error meddelande om socket inte finns
+  //socket funktion
+  //connect
+}
+
+void TCP_binary()
+{
+  #ifdef DEBUG
+    printf("tcp binary\n");
+  #endif
+
+  
+}
+
+void UDP_text()
+{
+
+}
+
+void UDP_binary()
+{
+
+}
+
 
 int main(int argc, char *argv[]){
   
@@ -139,34 +180,33 @@ int main(int argc, char *argv[]){
     }
     return 1;
   }
-  printf("nothing");
-  if(strncmp(protocol,"tcp",3))
-  {
-    printf("tcp");
-    if (strncmp(Destpath,"text",sizeof(Destpath)))
-    {
-      #ifdef DEBUG
-        printf("tcp text");
-      #endif
-    }
-    else if (strncmp(Destpath,"binary",sizeof(Destpath)))
-    {
+  
 
+  if(!strncmp(protocol,"tcp",4))
+  {
+    if (!strncmp(Destpath,"text",5))
+    {
+      TCP_text();
+    }
+    else if (!strncmp(Destpath,"binary",6))
+    {
+      TCP_binary();
     }
   }
-  else if(strncmp(protocol,"UDP",3))
+  else if(!strncmp(protocol,"udp",3))
   {
     
-    if (strncmp(Destpath,"text",sizeof(Destpath)))
+    if (!strncmp(Destpath,"text",4))
     {
-      
+      UDP_text();
     }
-    else if (strncmp(Destpath,"binary",sizeof(Destpath)))
+    else if (!strncmp(Destpath,"binary",6))
     {
-
+      UDP_binary();
     }
   }
-  else{
+  else
+  {
     printf("Nope");
   }
 #ifdef DEBUG 
@@ -177,22 +217,3 @@ int main(int argc, char *argv[]){
   
 }
 
-void TCP_text()
-{
-  
-}
-
-void TCP_binary()
-{
-
-}
-
-void UDP_text()
-{
-
-}
-
-void UDP_binary()
-{
-
-}
