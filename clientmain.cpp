@@ -18,7 +18,7 @@
 #include <calcLib.h>
 
 
-bool find_connect(char* protocol, char* DestPath, char* Desthost, char* Destport)
+bool find_connect(char* protocol, int& sockfd, char* Desthost, char* Destport)
 {
   
   struct addrinfo filter;
@@ -53,11 +53,11 @@ bool find_connect(char* protocol, char* DestPath, char* Desthost, char* Destport
   #ifdef DEBUG
   printf("getaddrinfo succeded: %s\n",Desthost);
   #endif
-  int sock = 0;
+  
   for(info = result; info != NULL; info = info->ai_next)
   {
-    sock=socket(info->ai_family,info->ai_socktype,info->ai_protocol);
-    if(sock !=-1)
+    sockfd=socket(info->ai_family,info->ai_socktype,info->ai_protocol);
+    if(sockfd !=-1)
     {
       #ifdef DEBUG
       printf("found socket\n");
@@ -65,7 +65,7 @@ bool find_connect(char* protocol, char* DestPath, char* Desthost, char* Destport
       break;
     }
   }
-  connect(sock,info->ai_addr,info->ai_addrlen);
+  connect(sockfd,info->ai_addr,info->ai_addrlen);
   #ifdef DEBUG
   printf("connected to socket\n");
   #endif
@@ -73,25 +73,34 @@ bool find_connect(char* protocol, char* DestPath, char* Desthost, char* Destport
   return true;
 }
 
-void TCP_text(char* protocol, char* Destpath, char* Desthost, char* Destport)
+void receveive_helper(char* buffer,int sockfd,size_t buffer_size)
+{
+  int numbytes;
+  if((numbytes=recv(sockfd,buffer,buffer_size,0)) == -1 )
+  {
+
+  }
+  buffer[numbytes] = '\0';
+  #ifdef DEBUG
+  printf("received (%d bytes): %s\n", numbytes, buffer);
+  #endif
+}
+
+void send_helper()
+{
+
+}
+
+void TCP_text(char* Desthost, char* Destport, int sockfd)
 {
   #ifdef DEBUG
     printf("tcp text\n");
   #endif
-  bool connected;
-  connected = find_connect(protocol,Destpath,Desthost,Destport);
-  if(!connected)
-  {
-    printf("could not connect");
-    return;
-  }
+  int buffer_size=1024;
+  char recv_buffer[buffer_size];
+  receveive_helper(recv_buffer,sockfd,buffer_size-1);
+  
 
-  //getaddrinfo(Desthost,protocol,info, result)
-
-  //get address info, ger oss möjliga sockets
-  // koppla till en valid socke, error meddelande om socket inte finns
-  //socket funktion
-  //connect
 }
 
 void TCP_binary()
@@ -226,6 +235,8 @@ int main(int argc, char *argv[]){
 
     
   /* Do magic */
+  
+
 
   initCalcLib();
   int port;
@@ -243,12 +254,20 @@ int main(int argc, char *argv[]){
     return 1;
   }
   
-
+  bool connected;
+  int sockfd=0;
+  connected = find_connect(protocol,sockfd,Desthost,Destport);
+  if(!connected)
+  {
+    printf("could not connect");
+    return -1;
+  }
+  
   if(!strncmp(protocol,"tcp",4))
   {
     if (!strncmp(Destpath,"text",5))
     {
-      TCP_text(protocol,Destpath,Desthost,Destport);
+      TCP_text(Desthost,Destport,sockfd);
     }
     else if (!strncmp(Destpath,"binary",7))
     {
