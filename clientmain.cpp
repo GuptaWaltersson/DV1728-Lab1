@@ -18,13 +18,75 @@
 #include <calcLib.h>
 
 
+bool find_connect(char* protocol, char* DestPath, char* Desthost, char* Destport)
+{
+  
+  struct addrinfo filter;
+  struct addrinfo* result, *info;
+  memset(&filter,0,sizeof(filter));
 
+  filter.ai_family = AF_UNSPEC;
 
-void TCP_text()
+  if (strcmp(protocol,"tcp") == 0)
+  {
+    filter.ai_socktype = SOCK_STREAM;
+    
+  }
+  else if(strcmp(protocol,"udp")==0)
+  {
+    filter.ai_socktype = SOCK_DGRAM;
+  }
+  else if (strcmp(protocol,"any")==0)
+  {
+
+  }
+  else
+  {
+    return false;
+  }
+  int err;
+  if((err = getaddrinfo(Desthost,Destport,&filter,&result))!= 0)
+  {
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(err));
+    return false;
+  }
+  #ifdef DEBUG
+  printf("getaddrinfo succeded: %s\n",Desthost);
+  #endif
+  int sock = 0;
+  for(info = result; info != NULL; info = info->ai_next)
+  {
+    sock=socket(info->ai_family,info->ai_socktype,info->ai_protocol);
+    if(sock !=-1)
+    {
+      #ifdef DEBUG
+      printf("found socket\n");
+      #endif
+      break;
+    }
+  }
+  connect(sock,info->ai_addr,info->ai_addrlen);
+  #ifdef DEBUG
+  printf("connected to socket\n");
+  #endif
+  freeaddrinfo(result);
+  return true;
+}
+
+void TCP_text(char* protocol, char* Destpath, char* Desthost, char* Destport)
 {
   #ifdef DEBUG
     printf("tcp text\n");
   #endif
+  bool connected;
+  connected = find_connect(protocol,Destpath,Desthost,Destport);
+  if(!connected)
+  {
+    printf("could not connect");
+    return;
+  }
+
+  //getaddrinfo(Desthost,protocol,info, result)
 
   //get address info, ger oss möjliga sockets
   // koppla till en valid socke, error meddelande om socket inte finns
@@ -186,11 +248,11 @@ int main(int argc, char *argv[]){
   {
     if (!strncmp(Destpath,"text",5))
     {
-      TCP_text();
+      TCP_text(protocol,Destpath,Desthost,Destport);
     }
-    else if (!strncmp(Destpath,"binary",6))
+    else if (!strncmp(Destpath,"binary",7))
     {
-      TCP_binary();
+      //TCP_binary();
     }
   }
   else if(!strncmp(protocol,"udp",3))
@@ -198,12 +260,16 @@ int main(int argc, char *argv[]){
     
     if (!strncmp(Destpath,"text",4))
     {
-      UDP_text();
+      //UDP_text();
     }
-    else if (!strncmp(Destpath,"binary",6))
+    else if (!strncmp(Destpath,"binary",7))
     {
-      UDP_binary();
+      //UDP_binary();
     }
+  }
+  else if (strcmp(protocol,"any")==0 || strcmp(protocol,"ANY")==0)
+  {
+
   }
   else
   {
