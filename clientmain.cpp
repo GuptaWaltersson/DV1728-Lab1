@@ -73,12 +73,48 @@ bool find_connect(char* protocol, int& sockfd, char* Desthost, char* Destport)
   return true;
 }
 
+char* calculator_helper(char* msg,char* answer)
+{
+
+  int result=0;
+  int num1, num2;
+  char word[32];
+  if ((sscanf(msg,"%31s %d %d",word,&num1,&num2))!= 3)
+  {
+    printf("did not parse three things");
+    return nullptr;
+  }
+
+  if(strstr(msg,"mul")!=NULL)
+  {
+    result = num1*num2;
+  }
+  else if(strstr(msg,"add")!=NULL)
+  {
+    result = num1+num2;
+  }
+  else if(strstr(msg,"sub")!=NULL)
+  {
+    result = num1-num2;
+  }
+  else if(strstr(msg,"div")!=NULL)
+  {
+    result = num1/num2;
+  }
+  #ifdef DEBUG
+  printf("result is :%d\n",result);
+  #endif
+  snprintf(answer,sizeof(answer),"%d\n",result);
+  return answer;
+}
+
 void receveive_helper(char* buffer,int sockfd,size_t buffer_size)
 {
   int numbytes;
   if((numbytes=recv(sockfd,buffer,buffer_size,0)) == -1 )
   {
-
+    printf("received nothing");
+    return;
   }
   buffer[numbytes] = '\0';
   #ifdef DEBUG
@@ -86,9 +122,20 @@ void receveive_helper(char* buffer,int sockfd,size_t buffer_size)
   #endif
 }
 
-void send_helper()
+void send_helper(char* msg, int sockfd)
 {
-
+  #ifdef DEBUG
+    printf("trying to send\n");
+  #endif
+  ssize_t bytes_sent = send(sockfd, msg, strlen(msg), 0);
+  if(bytes_sent == -1)
+  {
+    printf("nothing to send\n");
+    return;
+  }
+  #ifdef DEBUG
+    printf("sent %zd bytes: %s\n", bytes_sent, msg);
+  #endif
 }
 
 void TCP_text(char* Desthost, char* Destport, int sockfd)
@@ -99,8 +146,19 @@ void TCP_text(char* Desthost, char* Destport, int sockfd)
   int buffer_size=1024;
   char recv_buffer[buffer_size];
   receveive_helper(recv_buffer,sockfd,buffer_size-1);
+  if(strstr(recv_buffer,"TEXT TCP 1.1")!= NULL)
+  {
+    char* msg = "TEXT TCP 1.1 OK\n";
+    send_helper(msg,sockfd);
+  }
   
 
+  receveive_helper(recv_buffer,sockfd,buffer_size-1);
+  char text[64];
+  char* answer = calculator_helper(recv_buffer,text);
+  send_helper(answer,sockfd);
+  
+  receveive_helper(recv_buffer,sockfd,buffer_size-1);
 }
 
 void TCP_binary()
