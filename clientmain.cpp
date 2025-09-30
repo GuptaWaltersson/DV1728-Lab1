@@ -65,6 +65,13 @@ bool find_connect(char* protocol, int& sockfd, char* Desthost, char* Destport)
       break;
     }
   }
+  struct timeval tv;
+  tv.tv_sec = 5;   // 5 seconds
+  tv.tv_usec = 0;
+
+  setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
+  setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof tv);
+
   connect(sockfd,info->ai_addr,info->ai_addrlen);
   #ifdef DEBUG
   printf("connected to socket\n");
@@ -112,8 +119,9 @@ char* calculator_helper(char* msg,char* answer,int buffer_size)
 void receveive_helper(char* buffer,int sockfd,size_t buffer_size)
 {
   int numbytes;
-  if((numbytes=recv(sockfd,buffer,buffer_size,0)) == -1 )
+  if((numbytes=recv(sockfd,buffer,buffer_size,0)) <1 )
   {
+    printf("ERROR: Timeout");
     buffer[0] = '\0';
     return;
   }
