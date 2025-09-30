@@ -5,7 +5,7 @@
 
 // Enable if you want debugging to be printed, see examble below.
 // Alternative, pass CFLAGS=-DDEBUG to make, make CFLAGS=-DDEBUG
-//#define DEBUG
+#define DEBUG
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -153,8 +153,12 @@ void TCP_text(char* Desthost, char* Destport, int sockfd)
     const char* msg = "TEXT TCP 1.1 OK\n";
     send_helper(msg,sockfd);
   }
+  else{
+    close(sockfd);
+    return;
+  }
   
-
+  
   receveive_helper(recv_buffer,sockfd,buffer_size-1);
   printf("ASSIGNMENT: %s",recv_buffer);
   char text[64];
