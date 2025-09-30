@@ -5,7 +5,7 @@
 
 // Enable if you want debugging to be printed, see examble below.
 // Alternative, pass CFLAGS=-DDEBUG to make, make CFLAGS=-DDEBUG
-#define DEBUG
+//#define DEBUG
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -73,7 +73,7 @@ bool find_connect(char* protocol, int& sockfd, char* Desthost, char* Destport)
   return true;
 }
 
-char* calculator_helper(char* msg,char* answer)
+char* calculator_helper(char* msg,char* answer,int buffer_size)
 {
 
   int result=0;
@@ -104,7 +104,8 @@ char* calculator_helper(char* msg,char* answer)
   #ifdef DEBUG
   printf("result is :%d\n",result);
   #endif
-  snprintf(answer,sizeof(answer),"%d\n",result);
+  snprintf(answer,buffer_size,"%d",result);
+  
   return answer;
 }
 
@@ -120,9 +121,10 @@ void receveive_helper(char* buffer,int sockfd,size_t buffer_size)
   #ifdef DEBUG
   printf("received (%d bytes): %s\n", numbytes, buffer);
   #endif
+  
 }
 
-void send_helper(char* msg, int sockfd)
+void send_helper(const char* msg, int sockfd)
 {
   #ifdef DEBUG
     printf("trying to send\n");
@@ -148,17 +150,26 @@ void TCP_text(char* Desthost, char* Destport, int sockfd)
   receveive_helper(recv_buffer,sockfd,buffer_size-1);
   if(strstr(recv_buffer,"TEXT TCP 1.1")!= NULL)
   {
-    char* msg = "TEXT TCP 1.1 OK\n";
+    const char* msg = "TEXT TCP 1.1 OK\n";
     send_helper(msg,sockfd);
   }
   
 
   receveive_helper(recv_buffer,sockfd,buffer_size-1);
+  printf("ASSIGNMENT: %s",recv_buffer);
   char text[64];
-  char* answer = calculator_helper(recv_buffer,text);
-  send_helper(answer,sockfd);
+  calculator_helper(recv_buffer,text,sizeof(text));
+  strcat(text,"\n");
+  send_helper(text,sockfd);
   
   receveive_helper(recv_buffer,sockfd,buffer_size-1);
+  if(strstr(recv_buffer,"OK")!=NULL)
+  {
+    int number = atoi(text);
+    printf("OK (myresult=%d)\n",number);
+  }
+
+  close(sockfd);
 }
 
 void TCP_binary()
