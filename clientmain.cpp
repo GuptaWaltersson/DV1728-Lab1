@@ -114,7 +114,7 @@ void receveive_helper(char* buffer,int sockfd,size_t buffer_size)
   int numbytes;
   if((numbytes=recv(sockfd,buffer,buffer_size,0)) == -1 )
   {
-    printf("received nothing");
+    buffer[0] = '\0';
     return;
   }
   buffer[numbytes] = '\0';
@@ -154,11 +154,12 @@ void TCP_text(char* Desthost, char* Destport, int sockfd)
     send_helper(msg,sockfd);
   }
   else{
+    printf("ERROR: RESOLVE ISSUE");
     close(sockfd);
     return;
   }
   
-  
+
   receveive_helper(recv_buffer,sockfd,buffer_size-1);
   printf("ASSIGNMENT: %s",recv_buffer);
   char text[64];
