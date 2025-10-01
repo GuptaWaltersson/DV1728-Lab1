@@ -80,31 +80,37 @@ bool find_connect(char* protocol, int& sockfd, char* Desthost, char* Destport)
   return true;
 }
 
-char* calculator_helper(char* msg,char* answer,int buffer_size)
+char* calculator_helper(const char* msg,char* answer,int buffer_size,calcProtocol cp)
 {
-
+  uint32_t arith = ntohl(cp.arith);
+  
   int result=0;
-  int num1, num2;
+  uint32_t num1, num2;
   char word[32];
-  if ((sscanf(msg,"%31s %d %d",word,&num1,&num2))!= 3)
+  if(arith != 0)
+  {
+    num1 = ntohl(cp.inValue1);
+    num2 = ntohl(cp.inValue2);
+  }
+  else if ((sscanf(msg,"%31s %d %d",word,&num1,&num2))!= 3)
   {
     printf("did not parse three things");
     return nullptr;
   }
 
-  if(strstr(msg,"mul")!=NULL)
-  {
-    result = num1*num2;
-  }
-  else if(strstr(msg,"add")!=NULL)
+  if(strstr(msg,"add")!=NULL || arith == 1)
   {
     result = num1+num2;
   }
-  else if(strstr(msg,"sub")!=NULL)
+  else if(strstr(msg,"sub")!=NULL || arith == 2)
   {
     result = num1-num2;
   }
-  else if(strstr(msg,"div")!=NULL)
+  else if(strstr(msg,"mul")!=NULL || arith == 3)
+  {
+    result = num1*num2;
+  }
+  else if(strstr(msg,"div")!=NULL || arith == 4)
   {
     result = num1/num2;
   }
@@ -129,6 +135,24 @@ void receveive_helper(char* buffer,int sockfd,size_t buffer_size)
   #ifdef DEBUG
   printf("received (%d bytes): %s\n", numbytes, buffer);
   #endif
+  
+}
+
+void receive_binary( int sockfd,calcProtocol* cp)
+{
+  ssize_t numbytes = recv(sockfd, cp, sizeof(*cp), 0);
+  if (numbytes <= 0) {
+    perror("recv");
+    return;
+  }
+  if (numbytes < sizeof(*cp)) {
+    fprintf(stderr, "incomplete calcProtocol received (%zd bytes)\n", numbytes);
+    return;
+  }
+
+#ifdef DEBUG
+    printf("received a calcProtocol (%zd bytes)\n", numbytes);
+#endif
   
 }
 
@@ -162,7 +186,7 @@ void TCP_text(char* Desthost, char* Destport, int sockfd)
     send_helper(msg,sockfd);
   }
   else{
-    printf("ERROR: RESOLVE ISSUE");
+    printf("ERROR: MISSMATCH PROTOCOL\n");
     close(sockfd);
     return;
   }
@@ -171,7 +195,10 @@ void TCP_text(char* Desthost, char* Destport, int sockfd)
   receveive_helper(recv_buffer,sockfd,buffer_size-1);
   printf("ASSIGNMENT: %s",recv_buffer);
   char text[64];
-  calculator_helper(recv_buffer,text,sizeof(text));
+  calcProtocol cp;
+  memset(&cp,0,sizeof(cp));
+  
+  calculator_helper(recv_buffer,text,sizeof(text),cp);
   strcat(text,"\n");
   send_helper(text,sockfd);
   
@@ -185,21 +212,45 @@ void TCP_text(char* Desthost, char* Destport, int sockfd)
   close(sockfd);
 }
 
-void TCP_binary()
+void TCP_binary(char* Desthost, char* Destport, int sockfd)
 {
   #ifdef DEBUG
     printf("tcp binary\n");
   #endif
 
+  int buffer_size = 1024;
+  char recv_buffer[buffer_size];
+  receveive_helper(recv_buffer,sockfd,buffer_size-1);
+  if(strstr(recv_buffer,"BINARY TCP 1.1")== NULL)
+  {
+    printf("ERROR: MISSMATCH PROTOCOL\n");
+    close(sockfd);
+    return;
+  }
+
+  const char* msg = "BINARY TCP 1.1 OK\n";
+  send_helper(msg,sockfd);
+
+  calcProtocol cp;
+  receive_binary(sockfd,&cp);
   
+  uint32_t num1 = ntohl(cp.inValue1);
+  uint32_t num2 = ntohl(cp.inValue2);
+  #ifdef DEBUG
+  printf("num1: %d, num2: %d\n",num1,num2);
+  #endif
+  char ansbuf[32];
+  calculator_helper(msg,ansbuf,32,cp);
+
+
 }
 
-void UDP_text()
+void UDP_text(char* Desthost, char* Destport, int sockfd)
 {
 
 }
 
-void UDP_binary()
+void UDP_binary(char* Desthost, char* Destport,int sockfd)
 {
 
 }
@@ -345,25 +396,25 @@ int main(int argc, char *argv[]){
     return -1;
   }
   
-  if(!strncmp(protocol,"tcp",4))
+  if(!strcmp(protocol,"tcp") || !strcmp(protocol,"TCP"))
   {
-    if (!strncmp(Destpath,"text",5))
+    if (!strcmp(Destpath,"text")|| !strcmp(Destpath,"TEXT"))
     {
       TCP_text(Desthost,Destport,sockfd);
     }
-    else if (!strncmp(Destpath,"binary",7))
+    else if (!strcmp(Destpath,"binary")||!strcmp(Destpath,"BINARY"))
     {
-      //TCP_binary();
+      TCP_binary(Desthost,Destport,sockfd);
     }
   }
-  else if(!strncmp(protocol,"udp",3))
+  else if(!strcmp(protocol,"udp") || !strcmp(protocol,"UDP"))
   {
     
-    if (!strncmp(Destpath,"text",4))
+    if (!strcmp(Destpath,"text") || !strcmp(Destpath,"TEXT"))
     {
       //UDP_text();
     }
-    else if (!strncmp(Destpath,"binary",7))
+    else if (!strcmp(Destpath,"binary") || !strcmp(Destpath,"BINARY"))
     {
       //UDP_binary();
     }
