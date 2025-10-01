@@ -5,7 +5,7 @@
 
 // Enable if you want debugging to be printed, see examble below.
 // Alternative, pass CFLAGS=-DDEBUG to make, make CFLAGS=-DDEBUG
-#define DEBUG
+//#define DEBUG
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -83,7 +83,7 @@ bool find_connect(char* protocol, int& sockfd, char* Desthost, char* Destport)
 char* calculator_helper(const char* msg,char* answer,int buffer_size,calcProtocol cp)
 {
   uint32_t arith = ntohl(cp.arith);
-  
+  printf("ASSIGNMENT: ");
   int result=0;
   uint32_t num1, num2;
   char word[32];
@@ -100,18 +100,25 @@ char* calculator_helper(const char* msg,char* answer,int buffer_size,calcProtoco
 
   if(strstr(msg,"add")!=NULL || arith == 1)
   {
+    printf("add %d %d\n",num1,num2);
     result = num1+num2;
   }
   else if(strstr(msg,"sub")!=NULL || arith == 2)
   {
+    printf("sub %d %d\n",num1,num2);
+
     result = num1-num2;
   }
   else if(strstr(msg,"mul")!=NULL || arith == 3)
   {
+    printf("mul %d %d\n",num1,num2);
+
     result = num1*num2;
   }
   else if(strstr(msg,"div")!=NULL || arith == 4)
   {
+    printf("div %d %d\n",num1,num2);
+
     result = num1/num2;
   }
   #ifdef DEBUG
@@ -193,7 +200,7 @@ void TCP_text(char* Desthost, char* Destport, int sockfd)
   
 
   receveive_helper(recv_buffer,sockfd,buffer_size-1);
-  printf("ASSIGNMENT: %s",recv_buffer);
+  //printf("ASSIGNMENT: %s",recv_buffer);
   char text[64];
   calcProtocol cp;
   memset(&cp,0,sizeof(cp));
@@ -242,7 +249,28 @@ void TCP_binary(char* Desthost, char* Destport, int sockfd)
   char ansbuf[32];
   calculator_helper(msg,ansbuf,32,cp);
 
-
+  calcProtocol resp_cp;
+  
+  resp_cp.type = htons(22);
+  resp_cp.major_version = htons(1);
+  resp_cp.minor_version = htons(1);
+  resp_cp.id = htonl(ntohl(cp.id));
+  resp_cp.inResult = htonl(atoi(ansbuf));
+  
+  send(sockfd,&resp_cp,sizeof(resp_cp),0);
+  calcMessage ans_cp;
+  ssize_t numbytes = recv(sockfd, &ans_cp, sizeof(ans_cp), 0);
+  if(numbytes < 1)
+  {
+    printf("ERROR TIMEOUT");
+    return;
+  }
+  uint32_t ans = ntohl(ans_cp.message);
+  if(ans == 1)
+  {
+    printf("OK (myresult=%d)\n",atoi(ansbuf));
+  }
+  close(sockfd);
 }
 
 void UDP_text(char* Desthost, char* Destport, int sockfd)
