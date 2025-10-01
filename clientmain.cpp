@@ -5,7 +5,7 @@
 
 // Enable if you want debugging to be printed, see examble below.
 // Alternative, pass CFLAGS=-DDEBUG to make, make CFLAGS=-DDEBUG
-//#define DEBUG
+#define DEBUG
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -80,17 +80,17 @@ bool find_connect(char* protocol, int& sockfd, char* Desthost, char* Destport)
   return true;
 }
 
-char* calculator_helper(const char* msg,char* answer,int buffer_size,calcProtocol cp)
+char* calculator_helper(const char* msg,char* answer,int buffer_size,calcProtocol calcprot)
 {
-  uint32_t arith = ntohl(cp.arith);
+  uint32_t arith = ntohl(calcprot.arith);
   printf("ASSIGNMENT: ");
   int result=0;
   uint32_t num1, num2;
   char word[32];
   if(arith != 0)
   {
-    num1 = ntohl(cp.inValue1);
-    num2 = ntohl(cp.inValue2);
+    num1 = ntohl(calcprot.inValue1);
+    num2 = ntohl(calcprot.inValue2);
   }
   else if ((sscanf(msg,"%31s %d %d",word,&num1,&num2))!= 3)
   {
@@ -145,15 +145,18 @@ void receveive_helper(char* buffer,int sockfd,size_t buffer_size)
   
 }
 
-void receive_binary( int sockfd,calcProtocol* cp)
+void receive_binary( int sockfd,calcProtocol* calcprot)
 {
-  ssize_t numbytes = recv(sockfd, cp, sizeof(*cp), 0);
+  unsigned long numbytes = recv(sockfd, calcprot, sizeof(*calcprot), 0);
   if (numbytes <= 0) {
     perror("recv");
     return;
   }
-  if (numbytes < sizeof(*cp)) {
+  if (numbytes < sizeof(*calcprot)) {
+    #ifdef DEBUG
     fprintf(stderr, "incomplete calcProtocol received (%zd bytes)\n", numbytes);
+    #endif
+    printf("ERROR WRONG SIZE OR INCORRECT PROTOCOL");
     return;
   }
 
@@ -202,10 +205,10 @@ void TCP_text(char* Desthost, char* Destport, int sockfd)
   receveive_helper(recv_buffer,sockfd,buffer_size-1);
   //printf("ASSIGNMENT: %s",recv_buffer);
   char text[64];
-  calcProtocol cp;
-  memset(&cp,0,sizeof(cp));
+  calcProtocol calcprot;
+  memset(&calcprot,0,sizeof(calcprot));
   
-  calculator_helper(recv_buffer,text,sizeof(text),cp);
+  calculator_helper(recv_buffer,text,sizeof(text),calcprot);
   strcat(text,"\n");
   send_helper(text,sockfd);
   
@@ -238,34 +241,34 @@ void TCP_binary(char* Desthost, char* Destport, int sockfd)
   const char* msg = "BINARY TCP 1.1 OK\n";
   send_helper(msg,sockfd);
 
-  calcProtocol cp;
-  receive_binary(sockfd,&cp);
-  
-  uint32_t num1 = ntohl(cp.inValue1);
-  uint32_t num2 = ntohl(cp.inValue2);
+  calcProtocol calcprot;
+  receive_binary(sockfd,&calcprot);
   #ifdef DEBUG
+  
+  uint32_t num1 = ntohl(calcprot.inValue1);
+  uint32_t num2 = ntohl(calcprot.inValue2);
   printf("num1: %d, num2: %d\n",num1,num2);
   #endif
   char ansbuf[32];
-  calculator_helper(msg,ansbuf,32,cp);
+  calculator_helper(msg,ansbuf,32,calcprot);
 
-  calcProtocol resp_cp;
+  calcProtocol resp_calcprot;
   
-  resp_cp.type = htons(22);
-  resp_cp.major_version = htons(1);
-  resp_cp.minor_version = htons(1);
-  resp_cp.id = htonl(ntohl(cp.id));
-  resp_cp.inResult = htonl(atoi(ansbuf));
+  resp_calcprot.type = htons(22);
+  resp_calcprot.major_version = htons(1);
+  resp_calcprot.minor_version = htons(1);
+  resp_calcprot.id = htonl(ntohl(calcprot.id));
+  resp_calcprot.inResult = htonl(atoi(ansbuf));
   
-  send(sockfd,&resp_cp,sizeof(resp_cp),0);
-  calcMessage ans_cp;
-  ssize_t numbytes = recv(sockfd, &ans_cp, sizeof(ans_cp), 0);
+  send(sockfd,&resp_calcprot,sizeof(resp_calcprot),0);
+  calcMessage ans_calcprot;
+  ssize_t numbytes = recv(sockfd, &ans_calcprot, sizeof(ans_calcprot), 0);
   if(numbytes < 1)
   {
     printf("ERROR TIMEOUT");
     return;
   }
-  uint32_t ans = ntohl(ans_cp.message);
+  uint32_t ans = ntohl(ans_calcprot.message);
   if(ans == 1)
   {
     printf("OK (myresult=%d)\n",atoi(ansbuf));
@@ -275,12 +278,67 @@ void TCP_binary(char* Desthost, char* Destport, int sockfd)
 
 void UDP_text(char* Desthost, char* Destport, int sockfd)
 {
-
+  #ifdef DEBUG
+  printf("udp text\n");
+  #endif
 }
 
 void UDP_binary(char* Desthost, char* Destport,int sockfd)
 {
+  #ifdef DEBUG
+  printf("udp binary\n");
+  #endif
 
+  calcMessage cm;
+  cm.type = htons(22);
+  cm.message = htons(0);
+  cm.major_version = htons(1);
+  cm.minor_version = htons(1);
+  cm.protocol = htons(17);
+
+  ssize_t numbytes = send(sockfd,&cm,sizeof(cm),0);
+  if(numbytes < 1)
+  {
+    printf("ERROR TO SEND");
+    close(sockfd);
+    return;
+
+  }
+  calcProtocol calcprot;
+  receive_binary(sockfd,&calcprot);
+  const char* noll = "0";
+  char ansbuf[32];
+  calculator_helper(noll,ansbuf,32,calcprot);
+
+  calcProtocol ans_calcprot = calcprot;
+  ans_calcprot.id = ((calcprot.id));
+  ans_calcprot.type = htons(2);
+  ans_calcprot.minor_version = htons(1);
+  ans_calcprot.major_version = htons(1);
+
+  ans_calcprot.inResult = htonl(atoi(ansbuf));
+  
+  
+  numbytes =  send(sockfd, &ans_calcprot, sizeof(ans_calcprot), 0);
+  if(numbytes < 1)
+  {
+    printf("ERROR TO SEND");
+    close(sockfd);
+    return;
+  }
+
+  calcMessage calcmsg;
+  recv(sockfd,&calcmsg,sizeof(calcmsg),0);
+  uint32_t result = ntohl(calcmsg.message);
+  if(result == 1)
+  {
+    printf("OK (myresult=%d)\n",atoi(ansbuf));
+  }
+  else if (result == 2)
+  {
+    printf("NOT OK (myresult=%d)\n",atoi(ansbuf));
+  }
+  close(sockfd);
 }
 
 
@@ -440,11 +498,11 @@ int main(int argc, char *argv[]){
     
     if (!strcmp(Destpath,"text") || !strcmp(Destpath,"TEXT"))
     {
-      //UDP_text();
+      UDP_text(Desthost,Destport,sockfd);
     }
     else if (!strcmp(Destpath,"binary") || !strcmp(Destpath,"BINARY"))
     {
-      //UDP_binary();
+      UDP_binary(Desthost,Destport,sockfd);
     }
   }
   else if (strcmp(protocol,"any")==0 || strcmp(protocol,"ANY")==0)
