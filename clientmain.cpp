@@ -127,49 +127,51 @@ char* calculator_helper(const char* msg,char* answer,int buffer_size,calcProtoco
   #ifdef DEBUG
   printf("result is :%d\n",result);
   #endif
-  snprintf(answer,buffer_size,"%d\n",result);
+  snprintf(answer,buffer_size,"%d",result);
   
   return answer;
 }
 
-void receveive_helper(char* buffer,int sockfd,size_t buffer_size)
+int receveive_helper(char* buffer,int sockfd,size_t buffer_size)
 {
   int numbytes;
   if((numbytes=recv(sockfd,buffer,buffer_size,0)) <1 )
   {
     printf("ERROR: Timeout");
     buffer[0] = '\0';
-    return;
+    return EXIT_FAILURE;
   }
   buffer[numbytes] = '\0';
   #ifdef DEBUG
   printf("received (%d bytes): %s\n", numbytes, buffer);
   #endif
+  return EXIT_SUCCESS;
   
 }
 
-void receive_binary( int sockfd,calcProtocol* calcprot)
+int receive_binary( int sockfd,calcProtocol* calcprot)
 {
   unsigned long numbytes = recv(sockfd, calcprot, sizeof(*calcprot), 0);
   if (numbytes <= 0) {
     perror("recv");
-    return;
+    return EXIT_FAILURE;
   }
   if (numbytes < sizeof(*calcprot)) {
     #ifdef DEBUG
     fprintf(stderr, "incomplete calcProtocol received (%zd bytes)\n", numbytes);
     #endif
     printf("ERROR WRONG SIZE OR INCORRECT PROTOCOL");
-    return;
+    return EXIT_FAILURE;
   }
 
 #ifdef DEBUG
     printf("received a calcProtocol (%zd bytes)\n", numbytes);
 #endif
+  return EXIT_SUCCESS;
   
 }
 
-void send_helper(const char* msg, int sockfd)
+int send_helper(const char* msg, int sockfd)
 {
   #ifdef DEBUG
     printf("trying to send\n");
@@ -177,55 +179,64 @@ void send_helper(const char* msg, int sockfd)
   ssize_t bytes_sent = send(sockfd, msg, strlen(msg), 0);
   if(bytes_sent == -1)
   {
-    printf("nothing to send\n");
-    return;
+    return EXIT_FAILURE;
   }
+  
   #ifdef DEBUG
     printf("sent %zd bytes: %s\n", bytes_sent, msg);
   #endif
+  return EXIT_SUCCESS;
 }
 
-void TCP_text(char* Desthost, char* Destport, int sockfd)
+int TCP_text(char* Desthost, char* Destport, int sockfd)
 {
   #ifdef DEBUG
     printf("tcp text\n");
   #endif
   int buffer_size=1024;
   char recv_buffer[buffer_size];
-  receveive_helper(recv_buffer,sockfd,buffer_size-1);
+  if(receveive_helper(recv_buffer,sockfd,buffer_size-1)<0)
+  {
+    return EXIT_FAILURE;
+  }
   if(strstr(recv_buffer,"TEXT TCP 1.1")!= NULL)
   {
     const char* msg = "TEXT TCP 1.1 OK\n";
-    send_helper(msg,sockfd);
+    if( send_helper(msg,sockfd)<0) return EXIT_FAILURE;
   }
   else{
     printf("ERROR: MISSMATCH PROTOCOL\n");
     close(sockfd);
-    return;
+    return EXIT_FAILURE;
   }
   
 
-  receveive_helper(recv_buffer,sockfd,buffer_size-1);
-  //printf("ASSIGNMENT: %s",recv_buffer);
+  if( receveive_helper(recv_buffer,sockfd,buffer_size-1)<0) return EXIT_FAILURE;
+  
   char text[64];
   calcProtocol calcprot;
   memset(&calcprot,0,sizeof(calcprot));
   
   calculator_helper(recv_buffer,text,sizeof(text),calcprot);
   strcat(text,"\n");
-  send_helper(text,sockfd);
+  if (send_helper(text,sockfd)<0) return EXIT_FAILURE;
   
-  receveive_helper(recv_buffer,sockfd,buffer_size-1);
+  if (receveive_helper(recv_buffer,sockfd,buffer_size-1)<0) return EXIT_FAILURE;
   if(strstr(recv_buffer,"OK")!=NULL)
   {
     int number = atoi(text);
     printf("OK (myresult=%d)\n",number);
+    close(sockfd);
+    return EXIT_SUCCESS;
   }
-
-  close(sockfd);
+  else
+  {
+    close(sockfd);
+    return EXIT_FAILURE;
+  }
 }
 
-void TCP_binary(char* Desthost, char* Destport, int sockfd)
+int TCP_binary(char* Desthost, char* Destport, int sockfd)
 {
   #ifdef DEBUG
     printf("tcp binary\n");
@@ -233,19 +244,19 @@ void TCP_binary(char* Desthost, char* Destport, int sockfd)
 
   int buffer_size = 1024;
   char recv_buffer[buffer_size];
-  receveive_helper(recv_buffer,sockfd,buffer_size-1);
+  if (receveive_helper(recv_buffer,sockfd,buffer_size-1)<0) return EXIT_FAILURE;
   if(strstr(recv_buffer,"BINARY TCP 1.1")== NULL)
   {
     printf("ERROR: MISSMATCH PROTOCOL\n");
     close(sockfd);
-    return;
+    return EXIT_FAILURE;
   }
 
   const char* msg = "BINARY TCP 1.1 OK\n";
-  send_helper(msg,sockfd);
+  if (send_helper(msg,sockfd)<0) return EXIT_FAILURE;
 
   calcProtocol calcprot;
-  receive_binary(sockfd,&calcprot);
+  if(receive_binary(sockfd,&calcprot)<0) return EXIT_FAILURE;
   #ifdef DEBUG
   
   uint32_t num1 = ntohl(calcprot.inValue1);
@@ -269,17 +280,23 @@ void TCP_binary(char* Desthost, char* Destport, int sockfd)
   if(numbytes < 1)
   {
     printf("ERROR TIMEOUT");
-    return;
+    return EXIT_FAILURE;
   }
   uint32_t ans = ntohl(ans_calcprot.message);
   if(ans == 1)
   {
     printf("OK (myresult=%d)\n",atoi(ansbuf));
+    close(sockfd);
+    return EXIT_SUCCESS;
   }
-  close(sockfd);
+  else
+  {
+    close(sockfd);
+    return EXIT_FAILURE;
+  }
 }
 
-void UDP_text(char* Desthost, char* Destport, int sockfd)
+int UDP_text(char* Desthost, char* Destport, int sockfd)
 {
   #ifdef DEBUG
   printf("udp text\n");
@@ -290,26 +307,33 @@ void UDP_text(char* Desthost, char* Destport, int sockfd)
   char recv_buffer[buffer_size];
 
   const char* msg = "TEXT UDP 1.1\n";
-  send_helper(msg,sockfd);
-
-  receveive_helper(recv_buffer,sockfd,buffer_size);
+  if (send_helper(msg,sockfd)<0) return EXIT_FAILURE;
+  
+  if (receveive_helper(recv_buffer,sockfd,buffer_size)<0) return EXIT_FAILURE;
 
   char ansbuf[32];
   calcProtocol noll;
   memset(&noll,0,sizeof(noll));
   calculator_helper(recv_buffer,ansbuf,32,noll);
-  send_helper(ansbuf,sockfd);
+  strcat(ansbuf,"\n");
+  if (send_helper(ansbuf,sockfd)<0) return EXIT_FAILURE;
 
-  receveive_helper(recv_buffer,sockfd,buffer_size);
+  if(receveive_helper(recv_buffer,sockfd,buffer_size)<0) return EXIT_FAILURE;
 
   if(strstr(recv_buffer,"OK")!=NULL)
   {
     printf("OK (myresult=%d)\n",atoi(ansbuf));
+    close(sockfd);
+    return EXIT_SUCCESS;
   }
-  close(sockfd);
+  else
+  {
+    close(sockfd);
+    return EXIT_FAILURE;
+  }
 }
 
-void UDP_binary(char* Desthost, char* Destport,int sockfd)
+int UDP_binary(char* Desthost, char* Destport,int sockfd)
 {
   #ifdef DEBUG
   printf("udp binary\n");
@@ -327,11 +351,10 @@ void UDP_binary(char* Desthost, char* Destport,int sockfd)
   {
     printf("ERROR TO SEND");
     close(sockfd);
-    return;
-
+    return EXIT_FAILURE;
   }
   calcProtocol calcprot;
-  receive_binary(sockfd,&calcprot);
+  if(receive_binary(sockfd,&calcprot)<0) return EXIT_FAILURE;
   const char* noll = "0";
   char ansbuf[32];
   calculator_helper(noll,ansbuf,32,calcprot);
@@ -350,7 +373,7 @@ void UDP_binary(char* Desthost, char* Destport,int sockfd)
   {
     printf("ERROR TO SEND");
     close(sockfd);
-    return;
+    return EXIT_FAILURE;
   }
 
   calcMessage calcmsg;
@@ -359,12 +382,16 @@ void UDP_binary(char* Desthost, char* Destport,int sockfd)
   if(result == 1)
   {
     printf("OK (myresult=%d)\n",atoi(ansbuf));
+    close(sockfd);
+    return EXIT_SUCCESS;
   }
   else if (result == 2)
   {
     printf("NOT OK (myresult=%d)\n",atoi(ansbuf));
+    close(sockfd);
+    return EXIT_FAILURE;
   }
-  close(sockfd);
+  return EXIT_FAILURE;
 }
 
 
@@ -533,7 +560,33 @@ int main(int argc, char *argv[]){
   }
   else if (strcmp(protocol,"any")==0 || strcmp(protocol,"ANY")==0)
   {
-
+        
+    if (!strcmp(Destpath,"text") || !strcmp(Destpath,"TEXT"))
+    {
+      if(TCP_text(Desthost,Destport,sockfd) == EXIT_FAILURE)
+      {
+        if(UDP_text(Desthost,Destport,sockfd) == EXIT_FAILURE)
+        {
+          return EXIT_FAILURE;
+        }
+        else printf("UDP Protocol\n");
+      }
+      else printf("TCP Protocol\n");
+    }
+    else if (!strcmp(Destpath,"binary") || !strcmp(Destpath,"BINARY"))
+    {
+      if(TCP_binary(Desthost,Destport,sockfd)==EXIT_FAILURE)
+      {
+        if(UDP_binary(Desthost,Destport,sockfd) == EXIT_FAILURE)
+        {
+          return EXIT_FAILURE;
+        }
+        else printf("UDP Protocol\n");
+      }
+      else{
+        printf("TCP Protocol\n");
+      }
+    }
   }
   else
   {
