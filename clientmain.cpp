@@ -5,7 +5,7 @@
 
 // Enable if you want debugging to be printed, see examble below.
 // Alternative, pass CFLAGS=-DDEBUG to make, make CFLAGS=-DDEBUG
-#define DEBUG
+//#define DEBUG
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -89,6 +89,9 @@ char* calculator_helper(const char* msg,char* answer,int buffer_size,calcProtoco
   char word[32];
   if(arith != 0)
   {
+    #ifdef DEBUG
+    printf("arith != 0");
+    #endif
     num1 = ntohl(calcprot.inValue1);
     num2 = ntohl(calcprot.inValue2);
   }
@@ -124,7 +127,7 @@ char* calculator_helper(const char* msg,char* answer,int buffer_size,calcProtoco
   #ifdef DEBUG
   printf("result is :%d\n",result);
   #endif
-  snprintf(answer,buffer_size,"%d",result);
+  snprintf(answer,buffer_size,"%d\n",result);
   
   return answer;
 }
@@ -281,6 +284,29 @@ void UDP_text(char* Desthost, char* Destport, int sockfd)
   #ifdef DEBUG
   printf("udp text\n");
   #endif
+
+
+  int buffer_size = 1024;
+  char recv_buffer[buffer_size];
+
+  const char* msg = "TEXT UDP 1.1\n";
+  send_helper(msg,sockfd);
+
+  receveive_helper(recv_buffer,sockfd,buffer_size);
+
+  char ansbuf[32];
+  calcProtocol noll;
+  memset(&noll,0,sizeof(noll));
+  calculator_helper(recv_buffer,ansbuf,32,noll);
+  send_helper(ansbuf,sockfd);
+
+  receveive_helper(recv_buffer,sockfd,buffer_size);
+
+  if(strstr(recv_buffer,"OK")!=NULL)
+  {
+    printf("OK (myresult=%d)\n",atoi(ansbuf));
+  }
+  close(sockfd);
 }
 
 void UDP_binary(char* Desthost, char* Destport,int sockfd)
